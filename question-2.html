@@ -37,6 +37,7 @@
       const moonGroup = new THREE.Group();
       var curTime  = Date.now();
       var canvas = document.getElementById("webglcanvas");
+      var cameraAngle = 0;
 
       // Checks that your browser supports WebGL. 
       if ( ! ( window.WebGLRenderingContext
@@ -145,26 +146,32 @@
       
       // This function is called regularly to update objects.
       function animate() {
-	  // Computes how time has changed since last display
-	  var now       = Date.now();
-	  var deltaTime = now - curTime;
-	  curTime       = now;
-	  var fracTime  = deltaTime / 1000; // in seconds
-	  // Now we can move objects, camera, etc.
-	  // Example: rotation cube
-	  //var angle = 0.1 * Math.PI * 2 * fracTime; // one turn per 10 second.
-	  //earth.rotation.y += angle;
+        // Computes how time has changed since last display
+        var now       = Date.now();
+        var deltaTime = now - curTime;
+        curTime       = now;
+        var fracTime  = deltaTime / 1000; // in seconds
 
+	    // Now we can move objects, camera, etc.
         var angle = fracTime * Math.PI * 2;
         // Notez que l'axe y est l'axe "vertical" usuellement.
         earthGroup.rotation.y += angle / 365; // la terre tourne en 365 jours
         earth.rotation.y      += angle; // et en un jour sur elle-même
         moonGroup.rotation.y  += angle / 28; // la lune tourne en 28 jours autour de la terre
         moon.rotation.y       += angle /28; // et en 28 jours aussi sur elle-même pour faire face à la terre
+
+        var pos = new THREE.Vector3();
+        pos.setFromMatrixPosition(earth.matrixWorld);
+        camera.lookAt(pos);
+
+        cameraAngle += 0.01;
+
+        // Avec un grand demi-axe de 5 et un petit demi-axe de 3
+        camera.position.x = 5 * Math.cos( cameraAngle );
+        camera.position.y = 3 * Math.sin( cameraAngle );
       }
       
     </script>
 
   </body>
 </html>
-
