@@ -30,6 +30,7 @@
       var scene    = null;
       var camera   = null;
       var earth    = null;
+      const earthSystem = new THREE.Group();
       const earthGroup = new THREE.Group();
       var sun      = null;
       var moon     = null;
@@ -93,18 +94,25 @@
 	  earth.rotation.y = Math.PI / 5;
 
       sun.position.set(0, 0 , 0);
-      earth.position.set(1, 1, -5);
-      moon.position.set(0, 0, -5);
+      earth.position.set(5, 0, 0);
+      moon.position.set(2, 0, 0);
 
-        earthGroup.add(sun);
-        earthGroup.add(earth);
-        moonGroup.add(earth);
-        moonGroup.add(moon);
+      // Earth System
+      earthSystem.add(earth);
+      earthSystem.position.set(earth.position.x, earth.position.y, earth.position.z);
 
-        // Finally, add the mesh to our scene
-        scene.add( earthGroup );
-        scene.add( moonGroup );
-        //scene.add(sun);
+      // Earth Group
+      earthGroup.add(sun);
+      earthGroup.position.set(sun.position.x, sun.position.y, sun.position.z);
+      earthGroup.add(earthSystem);
+
+      // Moon Group
+      moonGroup.add(moon);
+      moonGroup.position.set(earth.position.x, earth.position.y, earth.position.z);
+      earthSystem.add(moonGroup);
+
+      // Finally, add the mesh to our scene
+      scene.add( earthGroup );
 
 
         // Add a white point light, which lights at infinite distance and without decay
