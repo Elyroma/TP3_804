@@ -8,5 +8,5 @@ pour que la question 2.8 fonctionne.
 
 Concernant la question 3, nous sommes restés sur un système solaire. Nous avons ajouté différents jeux de textures.
 L'esprit de ce système solaire est : les différents éléments.
-Nous avons également un astéroïde.
-Dans le fond nous avons également un nuage inquiétant.
+Nous avons également un astéroïde qui s'obstine à vouloir détruire le soleil.
+Dans le fond, nous avons de plus un nuage inquiétant.
