@@ -53,7 +53,7 @@
       // This function is called whenever the document is loaded
       function init() {
 
-        var path = "images/skybox/";
+        var path = "images/MilkyWay/";
         var format = '.jpg';
         var urls = [
           path + 'posx' + format, path + 'negx' + format,
@@ -103,19 +103,15 @@
         var material = new THREE.MeshBasicMaterial({ map: mapEarth });
         material.specular = new THREE.Color(255, 255, 255);
 
-
-        // Create the earth geometry
-        var geometry = new THREE.SphereGeometry(0.5);
-
         // And put the geometry and material together into a mesh
-        earth = new THREE.Mesh(geometry, material);
+        earth = new THREE.Mesh(new THREE.SphereGeometry(0.5), material);
         moon = new THREE.Mesh(new THREE.SphereGeometry(0.25), new THREE.MeshPhongMaterial({ map: mapMoon }));
 
         // sun
         const color = new THREE.Color("#FDB813");
-        geometry = new THREE.IcosahedronGeometry(1, 15);
-        material = new THREE.MeshBasicMaterial({ color: color });
-        sun = new THREE.Mesh(geometry, material);
+        var geometry = new THREE.IcosahedronGeometry(1, 15);
+        var sun_material = new THREE.MeshBasicMaterial({ color: color });
+        sun = new THREE.Mesh(geometry, sun_material);
         // la terre est inclinée par rapport à son orbite.
         earth.rotation.x = Math.PI / 5;
         earth.rotation.y = Math.PI / 5;
@@ -141,15 +137,14 @@
         // Finally, add the mesh to our scene
         scene.add( earthGroup );
 
-
         // Add a white point light, which lights at infinite distance and without decay
         // with the distance.
-        var light = new THREE.PointLight( 0xffffff, 2.5, 0.0, 0.0 );
+        var light = new THREE.PointLight( 0xffffff, 2.5, 0, 0);
+        light.castShadow = true;
         light.position.set(0, 0, 0);
         scene.add( light );
-
-        light.castShadow = true;
-        // On peut aussi paramétrer la qualité du calcul
+        
+        // // On peut aussi paramétrer la qualité du calcul
         light.shadow.mapSize.width  = 512; // default
         light.shadow.mapSize.height = 512; // default
         light.shadow.camera.near    = 0.5; // default
@@ -186,8 +181,6 @@
         renderer.shadowMap.enabled = true;
         // rendu coûteux mais plus joli (default: THREE.PCFShadowMap)
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-
 
       }
 
