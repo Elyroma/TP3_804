@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>A small introduction to three.js webgl [1]</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link rel="stylesheet" href="css/basic.css">
+  </head>
+  <body>
+    <div id="info"><a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> Q3 : un système solaire</div>
+    <canvas id="webglcanvas" style="border: none;background-color:#000000"
+	    width="800" height="600"></canvas>
+
+    <script type="importmap">
+    {
+    "imports": {
+    "three": "./three.module.js",
+    "three/addons/controls/": "./examples/jsm/controls/"
+    }
+    }
+    </script>
+
+    <script type="module">
+      import * as THREE from 'three';
+      import * as WILD from './wild.module.js';
+      import * as FIRE from './fire.module.js';
+      import * as AIR from './air.module.js';
+      import * as CLOUD from './cloud.module.js';
+      import { OrbitControls} from 'three/addons/controls/OrbitControls.js';
+
+      const height = window.innerHeight;
+      const width = window.innerWidth;
+
+      let renderer = null;
+      let scene    = null;
+      let camera   = null;
+      let earth    = null;
+      const earthSystem = new THREE.Group();
+      const earthGroup = new THREE.Group();
+      let sun      = null;
+      let moon     = null;
+      const moonGroup = new THREE.Group();
+      const sunGroup = new THREE.Group();
+      let wild = WILD.wild;
+      let wildGroup = new THREE.Group();
+      let fire = FIRE.fire;
+      let fireGroup = new THREE.Group();
+      let air = AIR.air;
+      let cloud = AIR.cloud;
+      let cloudGroup = new THREE.Group();
+      let airGroup = new THREE.Group();
+      let curTime  = Date.now();
+      let canvas = document.getElementById("webglcanvas");
+      let controls;
+      let shader;
+      let uniforms;
+
+      // Checks that your browser supports WebGL.
+      if ( ! ( window.WebGLRenderingContext
+	       && ( canvas.getContext('webgl2')
+		    || canvas.getContext('experimental-webgl')) ) )
+	  console.log( "WebGL not supported on your browser." );
+
+      init();
+      run();
+
+      // This function is called whenever the document is loaded
+      function init() {
+
+        var path = "images/MilkyWay/";
+        var format = '.jpg';
+        var urls = [
+          path + 'posx' + format, path + 'negx' + format,
+          path + 'posy' + format, path + 'negy' + format,
+          path + 'posz' + format, path + 'negz' + format
+        ];
+
+        // Create the Three.js renderer and attach it to our canvas
+        renderer = new THREE.WebGLRenderer( { canvas: canvas,
+                          antialias: true } );
+        // Set the viewport size
+        renderer.setSize( width, height );
+
+        // Create a new Three.js scene
+        scene = new THREE.Scene();
+        // Add  a camera so we can view the scene
+        camera = new THREE.PerspectiveCamera( 45, width / height, 0.1, 1000 );
+        camera.position.z = 20;
+
+        var textureCube    = new THREE.CubeTextureLoader().load( urls );
+        textureCube.type   = THREE.UnsignedByteType;
+        textureCube.format = THREE.RGBAFormat;
+        scene.background   = textureCube;
+
+        controls = new OrbitControls( camera, renderer.domElement );
+        // controls.addEventListener( 'change', render ); // call this only in static scenes (i.e., if there is no animation loop)
+        controls.enableDamping      = true; // an animation loop is required when either damping or auto-rotation are enabled
+        controls.dampingFactor      = 0.25;
+        controls.screenSpacePanning = false;
+        controls.minDistance        = 1;
+        controls.maxDistance        = 20;
+        controls.maxPolarAngle      = Math.PI / 2;
+
+        // Create a texture-mapped earth and add it to the scene
+        // First, create the texture map
+        var mapEarth = new THREE.TextureLoader().load( "images/earth_atmos_2048.jpg" );
+
+        var mapMoon = new THREE.TextureLoader().load( "images/moon_1024.jpg" );
+
+        // Now, create a Basic material; pass in the map
+        var material = new THREE.MeshPhongMaterial({ map: mapEarth });
+
+        // And put the geometry and material together into a mesh
+        earth = new THREE.Mesh(new THREE.SphereGeometry(0.5), material);
+        moon = new THREE.Mesh(new THREE.SphereGeometry(0.25), new THREE.MeshPhongMaterial({ map: mapMoon }));
+
+        // sun
+        const color = new THREE.Color("#FDB813");
+        var geometry = new THREE.IcosahedronGeometry(1, 15);
+        var sun_material = new THREE.MeshBasicMaterial({ color: color });
+        sun = new THREE.Mesh(geometry, sun_material);
+
+        // la terre est inclinée par rapport à son orbite.
+        earth.rotation.x = Math.PI / 5;
+        earth.rotation.y = Math.PI / 5;
+
+        sun.position.set(0, 0 , 0);
+        earth.position.set(5, 0, 0);
+        moon.position.set(1.3, 0, 0);
+        wild.position.set(15, 0, 0);
+        fire.position.set(5, 0, 0);
+        air.position.set(7, 0, 0);
+
+        // Sun Group
+        sunGroup.add( sun );
+        sunGroup.position.set(sun.position.x, sun.position.y, sun.position.z);
+
+        // Earth System
+        earthSystem.add(earth);
+        earthSystem.position.set(earth.position.x, earth.position.y, earth.position.z);
+
+        // Earth Group
+        earthGroup.add(sunGroup);
+        earthGroup.position.set(sun.position.x, sun.position.y, sun.position.z);
+        earthGroup.add(earthSystem);
+
+        // Moon Group
+        moonGroup.add(moon);
+        moonGroup.position.set(earth.position.x, earth.position.y, earth.position.z);
+        earthSystem.add(moonGroup);
+
+        // Wild Group
+        wildGroup.add(wild);
+        wildGroup.position.set(sun.position.x, sun.position.y, sun.position.z);
+
+        // Fire Group
+        fireGroup.add(fire);
+        fireGroup.position.set(sun.position.x, sun.position.y, sun.position.z);
+
+        // Air Group
+        airGroup.add(air);
+        airGroup.position.set(sun.position.x, sun.position.y, sun.position.z);
+
+        // Cloud Group
+        cloudGroup.add(cloud);
+        cloudGroup.add(AIR.cloud2);
+        cloudGroup.add(AIR.cloud3);
+        cloudGroup.position.set(air.position.x, air.position.y, air.position.z);
+        airGroup.add(cloudGroup);
+
+        // Finally, add the mesh to our scene
+        scene.add( earthGroup );
+        scene.add( wildGroup );
+        scene.add( fireGroup );
+        scene.add( airGroup );
+        scene.add( CLOUD.mesh );
+
+        // Add a white point light, which lights at infinite distance and without decay
+        // with the distance.
+        var light = new THREE.PointLight( 0xffffff, 2.5, 0, 0);
+        light.castShadow = true;
+        light.position.set(0, 0, 0);
+        scene.add( light );
+
+        // // On peut aussi paramétrer la qualité du calcul
+        light.shadow.mapSize.width  = 512; // default
+        light.shadow.mapSize.height = 512; // default
+        light.shadow.camera.near    = 0.5; // default
+        light.shadow.camera.far     = 50;
+
+        sun.castShadow      = false;
+        sun.receiveShadow   = false;
+        earth.castShadow    = true;
+        earth.receiveShadow = true;
+        moon.castShadow     = true;
+        moon.receiveShadow  = true;
+        wild.castShadow = true;
+        wild.receiveShadow = true;
+        air.castShadow = true;
+        air.receiveShadow = true;
+        fire.castShadow = true;
+        fire.receiveShadow = true;
+      }
+
+      // This function is called regularly to update the canvas webgl.
+      function run() {
+        // Ask to call again run
+        requestAnimationFrame( run );
+
+        // Render the scene
+        render();
+
+        // Calls the animate function if objects or camera should move
+        animate();
+      }
+
+      // This function is called regularly to take care of the rendering.
+      function render() {
+        renderer.shadowMap.enabled = true;
+        // rendu coûteux mais plus joli (default: THREE.PCFShadowMap)
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        // Render the scene
+        renderer.render( scene, camera );
+      }
+
+      // This function is called regularly to update objects.
+      function animate() {
+        controls.update();
+
+        // Computes how time has changed since last display
+        var now       = Date.now();
+        var deltaTime = now - curTime;
+        curTime       = now;
+        var fracTime  = deltaTime / 1000; // in seconds
+
+	    // Now we can move objects, camera, etc.
+        var angle = fracTime * Math.PI * 2;
+        // Notez que l'axe y est l'axe "vertical" usuellement.
+        earthGroup.rotation.y += angle / 365; // la terre tourne en 365 jours
+        earth.rotation.y      += angle; // et en un jour sur elle-même
+        moonGroup.rotation.y  += angle / 28; // la lune tourne en 28 jours autour de la terre
+        moon.rotation.y       += angle /28; // et en 28 jours aussi sur elle-même pour faire face à la terre
+        wild.rotateY(0.01);
+        wildGroup.rotateY(angle/80);
+        fire.rotateY(0.1);
+        fireGroup.rotateY(angle/10);
+        air.rotateY(0.05)
+        cloudGroup.rotateY(0.01);
+        cloudGroup.rotateX(0.002);
+        cloudGroup.rotateZ(0.003);
+        airGroup.rotateY(angle/30);
+      }
+    </script>
+
+  </body>
+</html>
