@@ -28,38 +28,34 @@
     out vec3 vertPos;     // (sortie) coordonnées 3D du sommet (repère écran)
     out vec3 gblPos;      // (sortie) coordonnées 3D du sommet (repère général)
     void main() {
-    float t = mod( moment, 6.28318530717958647688 );
-    // On gonfle légèrement le soleil périodiquement en fonction du temps.
-    vec3 scaled_pos = position + scale * (1.0+cos( 2.0*t)) * normal;
-    gblPos          = scaled_pos;
-    // On calcule le vecteur normal au sommet dans le repère écran
-    fn              = vec3( normalMatrix * normal );
-    // On calcule la position du sommet dans le repère caméra
-    vec4 vertPos4   = modelViewMatrix * vec4( scaled_pos, 1.0 );
-    // On envoie au fragment shader la position du sommet dans
-    // le repère camera.
-    vertPos         = vec3(vertPos4) / vertPos4.w;
-    // On indique à OpenGL la position du sommet dans le repère écran/pixel
-    gl_Position     = projectionMatrix * vertPos4;
+        float t = mod( moment, 6.28318530717958647688 );
+        gblPos          = position;
+        // On calcule le vecteur normal au sommet dans le repère écran
+        fn              = vec3( normalMatrix * normal );
+        // On calcule la position du sommet dans le repère caméra
+        vec4 vertPos4   = modelViewMatrix * vec4( gblPos, 1.0 );
+        // On envoie au fragment shader la position du sommet dans
+        // le repère camera.
+        vertPos         = vec3(vertPos4) / vertPos4.w;
+        // On indique à OpenGL la position du sommet dans le repère écran/pixel
+        gl_Position     = projectionMatrix * vertPos4;
     }
 </script>
 
 <script id="post-frag" type="x-shader/x-fragment">
     // Fragment/pixel shader
-  in vec3 fn;      // (entrée) normale du pixel (repère écran) (interpolée)
-  in vec3 vertPos; // (entrée) coordonnées 3D du pixel (repère écran)(interpolées)
-  in vec3 gblPos;  // (entrée) coordonnées 3D du pixel (repère général)(interpolées)
-    uniform float moment; // (général) temps écoulé depuis le début
+    in vec3 fn;      // (entrée) normale du pixel (repère écran) (interpolée)
+    in vec3 vertPos; // (entrée) coordonnées 3D du pixel (repère écran)(interpolées)
+    in vec3 gblPos;  // (entrée) coordonnées 3D du pixel (repère général)(interpolées)
+
     out vec4 outColor; // (sortie) la couleur de sortie du pixel
 
-    void main() {
-    float t = mod( moment, 6.28318530717958647688 ); // temps
-    vec3 n1 = normalize(fn); // vecteur normal au soleil (repère écran)
-    float l = abs( n1.z );   // proche de 0 sur les bords du soleil
-    outColor.rgb = vec3( 9.0 , 0.6+0.4* cos( 4.*gblPos.x + 3.*t ), l );
-    outColor.a   = 1.0;
+
+    void main () {
+        outColor = vec4(1.0, 0.0, 0.0, 1.0);
     }
 </script>
+
 
 <script type="module">
     import * as THREE from 'three';
@@ -119,10 +115,10 @@
         camera = new THREE.PerspectiveCamera( 45, width / height, 0.1, 1000 );
         camera.position.z = 20;
 
-        // var textureCube    = new THREE.CubeTextureLoader().load( urls );
-        // textureCube.type   = THREE.UnsignedByteType;
-        // textureCube.format = THREE.RGBAFormat;
-        // scene.background   = textureCube;
+        var textureCube    = new THREE.CubeTextureLoader().load( urls );
+        textureCube.type   = THREE.UnsignedByteType;
+        textureCube.format = THREE.RGBAFormat;
+        scene.background   = textureCube;
 
         controls = new OrbitControls( camera, renderer.domElement );
         // controls.addEventListener( 'change', render ); // call this only in static scenes (i.e., if there is no animation loop)
@@ -147,9 +143,21 @@
         var sun_material = new THREE.MeshBasicMaterial({ color: color });
         sun = new THREE.Mesh(geometry, sun_material);
         //asteroid
-        var asteroid_material = new THREE.MeshPhongMaterial({ color: 0x888888 });
-        var asteroid_geometry = new THREE.DodecahedronGeometry(0.5);
+        var asteroid_material = new THREE.MeshPhongMaterial({ map: mapMoon , alphaHash: true});
+        var asteroid_geometry = new THREE.SphereGeometry(0.5);
         asteroid = new THREE.Mesh(asteroid_geometry, asteroid_material);
+        const map = new THREE.TextureLoader().load( 'images/glow.png' );
+        const sprite_material = new THREE.SpriteMaterial( { map: map,transparent: true, opacity: 0.5, color: 0xff0000} );
+
+        const sprite = new THREE.Sprite( sprite_material );
+        sprite.scale.set(1.5, 1.5, 1)
+        const sprite_material_sun = new THREE.SpriteMaterial( { map: map,transparent: true, opacity: 0.5, color: 0xffaa00} );
+
+        const sprite_sun = new THREE.Sprite( sprite_material_sun );
+        sprite_sun.scale.set(3, 3, 1)
+
+        sunGroup.add( sprite_sun );
+        asteroidGroup.add( sprite );
 
         // la terre est inclinée par rapport à son orbite.
         earth.rotation.x = Math.PI / 5;
@@ -158,7 +166,7 @@
         sun.position.set(0, 0 , 0);
         earth.position.set(5, 0, 0);
         moon.position.set(1.3, 0, 0);
-        asteroid.position.set(1, 1, 0);
+        asteroid.position.set(0, 0, 0);
 
         // Add a white point light, which lights at infinite distance and without decay
         // with the distance.
@@ -220,7 +228,7 @@
         asteroidGroup.add(asteroid);
         asteroidHalo.position.set(asteroid.position.x, asteroid.position.y, asteroid.position.z);
         asteroidGroup.add(asteroidHalo);
-        asteroidGroup.position.set(asteroid.position.x, asteroid.position.y, asteroid.position.z);
+        asteroidGroup.position.set(2,0,2);
         scene.add(asteroidGroup);
 
         // Finally, add the mesh to our scene
@@ -270,18 +278,20 @@
         moonGroup.rotation.y  += angle / 28; // la lune tourne en 28 jours autour de la terre
         moon.rotation.y       += angle /28; // et en 28 jours aussi sur elle-même pour faire face à la terre
 
+        //l'astéroid se dirige vers le soleil (0,0,0)
+        if (asteroidGroup.position.x > 0) {
+            asteroidGroup.translateX(-0.1);
+        }
+        if (asteroidGroup.position.y > 0) {
+            asteroidGroup.translateY(-0.1);
+        }
+        if (asteroidGroup.position.z > 0) {
+            asteroidGroup.translateZ(-0.1);
+        }else{
+            asteroidGroup.position.set(40, 0, 40);
+        }
         // On fait tourner le halo du soleil
         shader.uniforms.moment.value += fracTime;
-
-        /*var pos = new THREE.Vector3();
-        pos.setFromMatrixPosition(earth.matrixWorld);
-        camera.lookAt(pos);
-
-        cameraAngle += 0.01;
-
-        // Avec un grand demi-axe de 5 et un petit demi-axe de 3
-        camera.position.x = 5 * Math.cos( cameraAngle );
-        camera.position.y = 3 * Math.sin( cameraAngle );*/
     }
 
 </script>
