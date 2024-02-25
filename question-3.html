@@ -5,67 +5,111 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <link rel="stylesheet" href="css/basic.css">
-  </head>
-  <body>
-    <div id="info"><a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> Q3 : un système solaire</div>
-    <canvas id="webglcanvas" style="border: none;background-color:#000000"
-	    width="800" height="600"></canvas>
+</head>
+<body>
+<div id="info"><a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> Q3 : un système solaire</div>
+<canvas id="webglcanvas" style="border: none;background-color:#000000"
+        width="800" height="600"></canvas>
 
-    <script type="importmap">
+<script type="importmap">
     {
     "imports": {
-    "three": "./three.module.js",
-    "three/addons/controls/": "./examples/jsm/controls/"
+        "three": "./three.module.js",
+        "three/addons/controls/": "./examples/jsm/controls/"
     }
     }
-    </script>
+</script>
 
-    <script type="module">
-      import * as THREE from 'three';
-      import * as WILD from './wild.module.js';
-      import * as FIRE from './fire.module.js';
-      import * as AIR from './air.module.js';
-      import * as CLOUD from './cloud.module.js';
-      import { OrbitControls} from 'three/addons/controls/OrbitControls.js';
+<script id="post-vert" type="x-shader/x-vertex">
+    // Vertex shader
+    uniform float moment; // (général) temps écoulé depuis le début
+    uniform float scale;  // (général) paramètre donnant le gonflement périodique
+    out vec3 fn;          // (sortie) normale au sommet (repère écran)
+    out vec3 vertPos;     // (sortie) coordonnées 3D du sommet (repère écran)
+    out vec3 gblPos;      // (sortie) coordonnées 3D du sommet (repère général)
+    void main() {
+    float t = mod( moment, 6.28318530717958647688 );
+    // On gonfle légèrement le soleil périodiquement en fonction du temps.
+    vec3 scaled_pos = position + scale * (1.0+cos( 2.0*t)) * normal;
+    gblPos          = scaled_pos;
+    // On calcule le vecteur normal au sommet dans le repère écran
+    fn              = vec3( normalMatrix * normal );
+    // On calcule la position du sommet dans le repère caméra
+    vec4 vertPos4   = modelViewMatrix * vec4( scaled_pos, 1.0 );
+    // On envoie au fragment shader la position du sommet dans
+    // le repère camera.
+    vertPos         = vec3(vertPos4) / vertPos4.w;
+    // On indique à OpenGL la position du sommet dans le repère écran/pixel
+    gl_Position     = projectionMatrix * vertPos4;
+    }
+</script>
 
-      const height = window.innerHeight;
-      const width = window.innerWidth;
+<script id="post-frag" type="x-shader/x-fragment">
+    // Fragment/pixel shader
+  in vec3 fn;      // (entrée) normale du pixel (repère écran) (interpolée)
+  in vec3 vertPos; // (entrée) coordonnées 3D du pixel (repère écran)(interpolées)
+  in vec3 gblPos;  // (entrée) coordonnées 3D du pixel (repère général)(interpolées)
+    uniform float moment; // (général) temps écoulé depuis le début
+    out vec4 outColor; // (sortie) la couleur de sortie du pixel
 
-      let renderer = null;
-      let scene    = null;
-      let camera   = null;
-      let earth    = null;
-      const earthSystem = new THREE.Group();
-      const earthGroup = new THREE.Group();
-      let sun      = null;
-      let moon     = null;
-      const moonGroup = new THREE.Group();
-      const sunGroup = new THREE.Group();
-      let wild = WILD.wild;
-      let wildGroup = new THREE.Group();
-      let fire = FIRE.fire;
-      let fireGroup = new THREE.Group();
-      let air = AIR.air;
-      let cloud = AIR.cloud;
-      let cloudGroup = new THREE.Group();
-      let airGroup = new THREE.Group();
-      let curTime  = Date.now();
-      let canvas = document.getElementById("webglcanvas");
-      let controls;
-      let shader;
-      let uniforms;
+    void main() {
+    float t = mod( moment, 6.28318530717958647688 ); // temps
+    vec3 n1 = normalize(fn); // vecteur normal au soleil (repère écran)
+    float l = abs( n1.z );   // proche de 0 sur les bords du soleil
+    outColor.rgb = vec3( 9.0 , 0.6+0.4* cos( 4.*gblPos.x + 3.*t ), l );
+    outColor.a   = 1.0;
+    }
+</script>
 
-      // Checks that your browser supports WebGL.
-      if ( ! ( window.WebGLRenderingContext
-	       && ( canvas.getContext('webgl2')
-		    || canvas.getContext('experimental-webgl')) ) )
-	  console.log( "WebGL not supported on your browser." );
+<script type="module">
+    import * as THREE from 'three';
+    import * as WILD from './wild.module.js';
+    import * as FIRE from './fire.module.js';
+    import * as AIR from './air.module.js';
+    import * as CLOUD from './cloud.module.js';
+    import { OrbitControls} from 'three/addons/controls/OrbitControls.js';
 
-      init();
-      run();
+    const height = window.innerHeight;
+    const width = window.innerWidth;
 
-      // This function is called whenever the document is loaded
-      function init() {
+    let renderer = null;
+    let scene    = null;
+    let camera   = null;
+    let earth    = null;
+    const earthSystem = new THREE.Group();
+    const earthGroup = new THREE.Group();
+    let sun      = null;
+    let moon     = null;
+    const sunGroup = new THREE.Group();
+    const moonGroup = new THREE.Group();
+    let wild = WILD.wild;
+    let wildGroup = new THREE.Group();
+    let fire = FIRE.fire;
+    let fireGroup = new THREE.Group();
+    let air = AIR.air;
+    let cloud = AIR.cloud;
+    let cloudGroup = new THREE.Group();
+    let airGroup = new THREE.Group();
+    let curTime  = Date.now();
+    let canvas = document.getElementById("webglcanvas");
+    let cameraAngle = 0;
+    let controls;
+    var shader;
+    var uniforms;
+    let asteroid = null;
+    let asteroidGroup = new THREE.Group();
+
+    // Checks that your browser supports WebGL.
+    if ( ! ( window.WebGLRenderingContext
+        && ( canvas.getContext('webgl2')
+            || canvas.getContext('experimental-webgl')) ) )
+        console.log( "WebGL not supported on your browser." );
+
+    init();
+    run();
+
+    // This function is called whenever the document is loaded
+    function init() {
 
         var path = "images/MilkyWay/";
         var format = '.jpg';
@@ -119,6 +163,10 @@
         var geometry = new THREE.IcosahedronGeometry(1, 15);
         var sun_material = new THREE.MeshBasicMaterial({ color: color });
         sun = new THREE.Mesh(geometry, sun_material);
+        //asteroid
+        var asteroid_material = new THREE.MeshPhongMaterial({ color: 0x888888 });
+        var asteroid_geometry = new THREE.DodecahedronGeometry(0.5);
+        asteroid = new THREE.Mesh(asteroid_geometry, asteroid_material);
 
         // la terre est inclinée par rapport à son orbite.
         earth.rotation.x = Math.PI / 5;
@@ -174,6 +222,8 @@
         scene.add( fireGroup );
         scene.add( airGroup );
         scene.add( CLOUD.mesh );
+        
+        asteroid.position.set(1, 1, 0);
 
         // Add a white point light, which lights at infinite distance and without decay
         // with the distance.
@@ -200,10 +250,38 @@
         air.receiveShadow = true;
         fire.castShadow = true;
         fire.receiveShadow = true;
-      }
+        asteroid.castShadow = true;
+        asteroid.receiveShadow = true;
 
-      // This function is called regularly to update the canvas webgl.
-      function run() {
+        //// SHADERS
+
+        uniforms = {
+            moment: { value: 0.0 },
+            scale:  { value: 0.02 }
+        };
+        shader = new THREE.ShaderMaterial( {
+            vertexShader: document.querySelector( '#post-vert' ).textContent.trim(),
+            fragmentShader: document.querySelector( '#post-frag' ).textContent.trim(),
+            uniforms: uniforms
+        } );
+
+        shader.glslVersion = THREE.GLSL3;
+
+        const asteroidHalo = new THREE.Mesh(asteroid_geometry, shader);
+
+        // Asteroid Group
+        asteroidGroup.add(asteroid);
+        asteroidHalo.position.set(asteroid.position.x, asteroid.position.y, asteroid.position.z);
+        asteroidGroup.add(asteroidHalo);
+        asteroidGroup.position.set(asteroid.position.x, asteroid.position.y, asteroid.position.z);
+        scene.add(asteroidGroup);
+
+        // Finally, add the mesh to our scene
+        scene.add( earthGroup );
+    }
+
+    // This function is called regularly to update the canvas webgl.
+    function run() {
         // Ask to call again run
         requestAnimationFrame( run );
 
@@ -234,7 +312,7 @@
         curTime       = now;
         var fracTime  = deltaTime / 1000; // in seconds
 
-	    // Now we can move objects, camera, etc.
+        // Now we can move objects, camera, etc.
         var angle = fracTime * Math.PI * 2;
         // Notez que l'axe y est l'axe "vertical" usuellement.
         earthGroup.rotation.y += angle / 365; // la terre tourne en 365 jours
@@ -250,6 +328,9 @@
         cloudGroup.rotateX(0.002);
         cloudGroup.rotateZ(0.003);
         airGroup.rotateY(angle/30);
+
+        // On fait tourner le halo du soleil
+        shader.uniforms.moment.value += fracTime;
       }
     </script>
 
