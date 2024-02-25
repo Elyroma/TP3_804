@@ -93,15 +93,12 @@
         camera.position.y = 3 * Math.sin( cameraAngle );*/
           // Create a texture-mapped earth and add it to the scene
         // First, create the texture map
-        var mapUrl = "images/earth_atmos_2048.jpg";
-        var mapEarth    = new THREE.TextureLoader().load( mapUrl );
+        var mapEarth = new THREE.TextureLoader().load( "images/earth_atmos_2048.jpg" );
 
-        var mapMoonUrl = "images/moon_1024.jpg";
-        var mapMoon = new THREE.TextureLoader().load( mapMoonUrl );
+        var mapMoon = new THREE.TextureLoader().load( "images/moon_1024.jpg" );
 
         // Now, create a Basic material; pass in the map
-        var material = new THREE.MeshBasicMaterial({ map: mapEarth });
-        material.specular = new THREE.Color(255, 255, 255);
+        var material = new THREE.MeshPhongMaterial({ map: mapEarth });
 
         // And put the geometry and material together into a mesh
         earth = new THREE.Mesh(new THREE.SphereGeometry(0.5), material);
@@ -143,7 +140,7 @@
         light.castShadow = true;
         light.position.set(0, 0, 0);
         scene.add( light );
-        
+
         // // On peut aussi paramétrer la qualité du calcul
         light.shadow.mapSize.width  = 512; // default
         light.shadow.mapSize.height = 512; // default
@@ -156,9 +153,6 @@
         earth.receiveShadow = true;
         moon.castShadow     = true;
         moon.receiveShadow  = true;
-
-        const ambientlight = new THREE.AmbientLight(0xffffff, 0.1);
-        scene.add(ambientlight);
       }
 
       // This function is called regularly to update the canvas webgl.
